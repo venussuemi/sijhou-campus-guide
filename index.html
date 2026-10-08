@@ -68,7 +68,7 @@ img{user-select:none;-webkit-user-drag:none}
 .tool-btn{border:0;background:transparent;color:var(--ink);border-radius:12px;padding:9px 11px;cursor:pointer}
 .tool-btn:hover{background:#edf7ff}
 
-.map-viewport{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden;touch-action:none}
+.map-viewport{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden;touch-action:none;overscroll-behavior:contain;-webkit-user-select:none;user-select:none}
 .map-canvas{
   position:relative;width:min(100%,1280px);aspect-ratio:4/3;
   transform-origin:center center;transition:transform .9s cubic-bezier(.2,.8,.2,1);will-change:transform
@@ -455,9 +455,58 @@ document.getElementById('fullBtn').onclick=async()=>{
   try{if(!document.fullscreenElement)await document.documentElement.requestFullscreen();else await document.exitFullscreen()}catch(e){}
 };
 
-mapViewport.addEventListener('pointerdown',e=>{drag=true;sx=e.clientX;sy=e.clientY;stx=tx;sty=ty;mapViewport.setPointerCapture(e.pointerId)});
-mapViewport.addEventListener('pointermove',e=>{if(!drag)return;mapCanvas.style.transition='none';tx=stx+(e.clientX-sx);ty=sty+(e.clientY-sy);applyTransform()});
-mapViewport.addEventListener('pointerup',()=>{drag=false;mapCanvas.style.transition='transform .9s cubic-bezier(.2,.8,.2,1)'});
+const pointers=new Map();
+let gestureMode=null;
+let panStartX=0,panStartY=0,panStartTx=0,panStartTy=0;
+let pinchStartDistance=0,pinchStartScale=1;
+let pinchAnchorX=0,pinchAnchorY=0;
+
+function viewportPoint(x,y){
+  const rect=mapViewport.getBoundingClientRect();
+  return{x:x-rect.left-rect.width/2,y:y-rect.top-rect.height/2};
+}
+function pointerDistance(a,b){return Math.hypot(b.clientX-a.clientX,b.clientY-a.clientY)}
+function pointerMidpoint(a,b){return{x:(a.clientX+b.clientX)/2,y:(a.clientY+b.clientY)/2}}
+function beginPan(pointer){
+  gestureMode='pan';panStartX=pointer.clientX;panStartY=pointer.clientY;panStartTx=tx;panStartTy=ty;
+}
+function beginPinch(){
+  const pts=[...pointers.values()];if(pts.length<2)return;
+  const a=pts[0],b=pts[1],mid=pointerMidpoint(a,b),localMid=viewportPoint(mid.x,mid.y);
+  pinchStartDistance=pointerDistance(a,b);pinchStartScale=scale;
+  pinchAnchorX=(localMid.x-tx)/pinchStartScale;pinchAnchorY=(localMid.y-ty)/pinchStartScale;
+  gestureMode='pinch';
+}
+mapViewport.addEventListener('pointerdown',e=>{
+  mapCanvas.style.transition='none';
+  pointers.set(e.pointerId,{clientX:e.clientX,clientY:e.clientY});
+  try{mapViewport.setPointerCapture(e.pointerId)}catch(err){}
+  if(pointers.size===1)beginPan({clientX:e.clientX,clientY:e.clientY});
+  else if(pointers.size===2)beginPinch();
+});
+mapViewport.addEventListener('pointermove',e=>{
+  if(!pointers.has(e.pointerId))return;
+  pointers.set(e.pointerId,{clientX:e.clientX,clientY:e.clientY});
+  if(pointers.size===1&&gestureMode==='pan'){
+    tx=panStartTx+(e.clientX-panStartX);ty=panStartTy+(e.clientY-panStartY);applyTransform();return;
+  }
+  if(pointers.size>=2){
+    const pts=[...pointers.values()],a=pts[0],b=pts[1];
+    if(gestureMode!=='pinch')beginPinch();
+    if(!pinchStartDistance)return;
+    const ratio=pointerDistance(a,b)/pinchStartDistance;
+    const newScale=Math.max(1,Math.min(2.8,pinchStartScale*ratio));
+    const mid=pointerMidpoint(a,b),localMid=viewportPoint(mid.x,mid.y);
+    tx=localMid.x-pinchAnchorX*newScale;ty=localMid.y-pinchAnchorY*newScale;scale=newScale;applyTransform();
+  }
+});
+function endPointer(e){
+  pointers.delete(e.pointerId);
+  if(pointers.size===1)beginPan([...pointers.values()][0]);
+  else if(pointers.size===0){gestureMode=null;mapCanvas.style.transition='transform .35s cubic-bezier(.2,.8,.2,1)'}
+}
+mapViewport.addEventListener('pointerup',endPointer);
+mapViewport.addEventListener('pointercancel',endPointer);
 mapViewport.addEventListener('wheel',e=>{e.preventDefault();scale=Math.max(1,Math.min(2.8,scale+(e.deltaY<0?.10:-.10)));mapCanvas.style.transition='none';applyTransform();setTimeout(()=>mapCanvas.style.transition='transform .9s cubic-bezier(.2,.8,.2,1)',40)},{passive:false});
 window.addEventListener('resize',()=>{if(active==='overview'){tx=0;ty=0;scale=1;applyTransform()}else{const p=places.find(x=>x.id===active);if(p)focusOn(p.center,p.zoom)}});
 window.addEventListener('keydown',e=>{if(e.key==='Escape'&&!document.fullscreenElement)focusPlace('overview')});
