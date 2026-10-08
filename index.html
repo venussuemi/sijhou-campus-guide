@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#eaf6ff">
+<meta name="description" content="彰化縣溪州國民小學 3D 校園導覽">
+<title>溪州國小 3D 校園導覽</title>
+<style>
+:root{
+  --ink:#17324d;--muted:#6f8190;--blue:#2d8fe8;--blue2:#69b8ef;--blue3:#dff2ff;
+  --cream:#fffaf2;--paper:#ffffff;--line:#dbe8f0;--orange:#f3a260;--orange2:#ff8a2d;
+  --glow:#ffc44d;--green:#75b85f;--shadow:0 18px 46px rgba(34,68,95,.17);
+  --soft-shadow:0 10px 24px rgba(34,68,95,.10);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;font-family:system-ui,-apple-system,"Segoe UI","Noto Sans TC","PingFang TC",sans-serif;background:#edf6fb;color:var(--ink)}
+body{overflow:hidden}
+button{font:inherit}
+button:focus-visible{outline:3px solid rgba(45,143,232,.35);outline-offset:2px}
+img{user-select:none;-webkit-user-drag:none}
+.app{height:100vh;display:grid;grid-template-columns:70% 30%;background:#edf6fb}
+
+/* ===== Intro ===== */
+.splash{
+  position:fixed;inset:0;z-index:999;display:grid;place-items:center;
+  background:
+    radial-gradient(circle at 17% 10%,rgba(255,255,255,.98),transparent 24%),
+    radial-gradient(circle at 86% 16%,rgba(255,255,255,.82),transparent 20%),
+    linear-gradient(145deg,#d8f1ff 0%,#f7fbff 45%,#edf8df 100%);
+  transition:opacity .45s ease,visibility .45s ease
+}
+.splash.hide{opacity:0;visibility:hidden}
+.splash-card{
+  width:min(680px,90vw);background:rgba(255,255,255,.88);backdrop-filter:blur(18px);
+  border:1px solid rgba(255,255,255,.9);border-radius:32px;padding:28px 28px 24px;
+  box-shadow:0 28px 80px rgba(39,77,103,.18);text-align:center
+}
+.splash-logo{font-weight:900;letter-spacing:.04em;color:#2a78b7;font-size:13px}
+.splash h1{margin:8px 0 6px;font-size:clamp(32px,5vw,54px);line-height:1.08}
+.splash p{margin:0 auto;color:var(--muted);max-width:520px;line-height:1.7}
+.sheep-row{display:flex;justify-content:center;gap:12px;margin:22px 0 18px}
+.sheep-row img{width:68px;height:76px;object-fit:contain;background:#fff;border-radius:18px;padding:5px;box-shadow:var(--soft-shadow)}
+.enter-btn{border:0;border-radius:16px;padding:13px 24px;background:linear-gradient(135deg,#2689df,#63b6ef);color:#fff;font-weight:900;cursor:pointer;box-shadow:0 12px 26px rgba(45,143,232,.27)}
+.enter-btn:hover{transform:translateY(-1px)}
+.splash-tip{display:block;margin-top:12px;font-size:12px;color:#8a9aa7}
+
+.sheep-row img.learning-fix,.mascot-btn img.learning-fix,.guide-bubble img.learning-fix,.mascot-runner img.learning-fix{transform:scale(1.06)}
+
+/* ===== Left map ===== */
+.stage{
+  position:relative;overflow:hidden;
+  background:
+    radial-gradient(circle at 12% 8%,rgba(255,255,255,.95),transparent 18%),
+    radial-gradient(circle at 83% 10%,rgba(255,255,255,.82),transparent 20%),
+    linear-gradient(#cfeeff,#eaf7fd 68%,#d9efca);
+}
+.topbar{
+  position:absolute;z-index:40;left:18px;right:18px;top:16px;
+  display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none
+}
+.brand,.toolbar{
+  pointer-events:auto;background:rgba(255,255,255,.92);backdrop-filter:blur(13px);
+  border:1px solid rgba(255,255,255,.88);box-shadow:var(--shadow);border-radius:18px
+}
+.brand{padding:11px 15px;max-width:430px}.brand b{display:block;font-size:17px;letter-spacing:.01em}.brand small{display:block;color:var(--muted);margin-top:2px}
+.toolbar{display:flex;gap:6px;padding:6px}
+.tool-btn{border:0;background:transparent;color:var(--ink);border-radius:12px;padding:9px 11px;cursor:pointer}
+.tool-btn:hover{background:#edf7ff}
+
+.map-viewport{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden;touch-action:none}
+.map-canvas{
+  position:relative;width:min(100%,1280px);aspect-ratio:4/3;
+  transform-origin:center center;transition:transform .9s cubic-bezier(.2,.8,.2,1);will-change:transform
+}
+.map-canvas img.base{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;filter:saturate(1.025) contrast(1.01)}
+.dim-layer{position:absolute;inset:0;background:rgba(15,37,56,0);pointer-events:none;transition:.25s}
+.map-canvas.dimmed .dim-layer{background:rgba(15,37,56,.18)}
+
+.focus-box{
+  position:absolute;display:none;z-index:10;border:4px solid var(--glow);border-radius:22px;
+  background:rgba(255,196,77,.05);
+  box-shadow:0 0 0 8px rgba(255,196,77,.15),0 0 28px rgba(255,196,77,.82);
+  pointer-events:none;animation:glow 1.55s ease-in-out infinite alternate
+}
+@keyframes glow{
+  from{box-shadow:0 0 0 7px rgba(255,196,77,.12),0 0 16px rgba(255,196,77,.55)}
+  to{box-shadow:0 0 0 11px rgba(255,196,77,.04),0 0 34px rgba(255,196,77,.92)}
+}
+.pin{
+  position:absolute;display:none;z-index:14;width:22px;height:22px;border-radius:50%;
+  background:var(--orange2);border:4px solid #fff;box-shadow:0 0 0 9px rgba(255,138,45,.18);
+  transform:translate(-50%,-100%)
+}
+.pin:after{content:"";position:absolute;left:4px;top:14px;border-left:6px solid transparent;border-right:6px solid transparent;border-top:12px solid var(--orange2)}
+.pin.show{display:block;animation:pulse 1.35s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 17px rgba(255,138,45,.03)}}
+
+.hotspot{position:absolute;z-index:9;border:0;background:transparent;cursor:pointer;border-radius:12px}
+.hotspot:hover{outline:3px solid rgba(255,255,255,.88);background:rgba(255,255,255,.06)}
+
+.footstep-layer{position:absolute;inset:0;pointer-events:none;z-index:12}
+.footstep{
+  position:absolute;width:4.6%;height:auto;transform-origin:center center;opacity:.54;
+  filter:drop-shadow(0 2px 4px rgba(244,173,113,.13));
+  animation:footAppear .38s ease both
+}
+@keyframes footAppear{from{opacity:0;transform:translate(-50%,-50%) scale(.74)}to{opacity:.54}}
+
+.mascot-runner{
+  position:absolute;z-index:13;width:5.3%;aspect-ratio:1/1.25;display:none;pointer-events:none;
+  transform:translate(-50%,-100%);filter:drop-shadow(0 8px 10px rgba(29,56,72,.18))
+}
+.mascot-runner.show{display:block}
+.mascot-runner img{width:100%;height:100%;object-fit:contain;animation:bob .7s ease-in-out infinite alternate}
+@keyframes bob{from{transform:translateY(0) rotate(-1deg)}to{transform:translateY(-6px) rotate(1deg)}}
+
+.guide-bubble{
+  position:absolute;z-index:42;left:18px;bottom:64px;max-width:370px;background:rgba(255,255,255,.95);
+  border:1px solid rgba(255,255,255,.9);border-radius:20px;padding:12px 14px;box-shadow:var(--shadow);
+  display:flex;gap:12px;align-items:center;opacity:0;transform:translateY(10px);pointer-events:none;transition:.3s
+}
+.guide-bubble.show{opacity:1;transform:translateY(0)}
+.guide-bubble img{width:64px;height:64px;object-fit:contain}
+.guide-bubble b{display:block;margin-bottom:3px}.guide-bubble small{color:var(--muted);line-height:1.45}
+.legend{position:absolute;z-index:41;left:18px;bottom:16px;display:flex;gap:8px;flex-wrap:wrap}
+.legend span{background:rgba(255,255,255,.92);box-shadow:var(--soft-shadow);border-radius:999px;padding:8px 11px;font-size:12px;color:var(--muted)}
+
+/* ===== Right panel ===== */
+.sidebar{height:100vh;overflow:auto;background:linear-gradient(180deg,#fffdf8,#fffaf2);border-left:1px solid var(--line);padding:22px 18px 26px}
+.sidebar::-webkit-scrollbar{width:8px}.sidebar::-webkit-scrollbar-thumb{background:#d4e2ec;border-radius:999px}
+.hero{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.eyebrow{font-size:11px;letter-spacing:.18em;color:var(--blue);font-weight:900}
+.sidebar h1{margin:4px 0 4px;font-size:31px}
+.intro{margin:0;color:var(--muted);line-height:1.58;font-size:14px}
+.version-chip{white-space:nowrap;background:#edf7ff;color:#367bb6;border-radius:999px;padding:6px 9px;font-size:11px;font-weight:800}
+.filters{display:flex;gap:8px;margin:18px 0 14px;position:sticky;top:0;z-index:5;padding:6px 0;background:linear-gradient(180deg,#fffdf8 70%,rgba(255,253,248,0))}
+.filter{flex:1;border:1px solid var(--line);background:#fff;border-radius:12px;padding:9px 8px;color:var(--ink);cursor:pointer}
+.filter.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+
+.nav{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.nav button{
+  display:flex;gap:10px;align-items:center;text-align:left;border:1px solid var(--line);background:#fff;color:var(--ink);
+  border-radius:15px;padding:12px;cursor:pointer;transition:.2s;min-height:68px
+}
+.nav button:hover{transform:translateY(-1px);box-shadow:0 8px 18px rgba(40,75,100,.08)}
+.nav button.active{background:linear-gradient(135deg,var(--blue),var(--blue2));color:#fff;border-color:transparent;box-shadow:0 10px 22px rgba(45,143,232,.22)}
+.meta{font-size:11px;opacity:.72;margin-top:2px}
+
+.info{
+  margin-top:16px;background:#fff;border:1px solid var(--line);border-radius:22px;padding:16px;
+  box-shadow:0 10px 25px rgba(40,75,100,.08)
+}
+.info-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.badge{display:inline-block;margin-bottom:8px;padding:5px 9px;border-radius:999px;background:#edf6ff;color:#367bb6;font-size:12px;font-weight:800}
+.info h2{margin:0 0 7px;font-size:22px}.info p{margin:0;color:var(--muted);line-height:1.72;font-size:14px}
+.go-btn{width:100%;margin-top:13px;border:0;border-radius:14px;background:linear-gradient(135deg,#2b8fe6,#6dbaf0);color:#fff;padding:12px;font-weight:900;cursor:pointer;box-shadow:0 9px 18px rgba(45,143,232,.18)}
+.go-btn:hover{transform:translateY(-1px)}
+.floor-panel{display:none;margin-top:13px;border-top:1px dashed var(--line);padding-top:12px}.floor-panel.show{display:block}
+.floor-title{font-size:12px;color:var(--muted);margin-bottom:8px}
+.floor-tabs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}
+.floor-tabs button{border:1px solid var(--line);background:#fbfdff;border-radius:10px;padding:9px;cursor:pointer;color:var(--ink);font-weight:800}
+.floor-tabs button.active{background:#17324d;color:#fff}
+.subspaces{display:none;margin-top:12px}.subspaces.show{display:block}.subspaces-title{font-size:12px;color:var(--muted);margin-bottom:7px}
+.subgrid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.subgrid button{border:1px solid var(--line);background:#fbfdff;border-radius:10px;padding:8px;cursor:pointer;color:var(--ink);font-size:12px}
+
+.mascot-panel{margin-top:16px;background:#fff;border:1px solid var(--line);border-radius:22px;padding:15px;box-shadow:0 10px 25px rgba(40,75,100,.08)}
+.mascot-panel h3{margin:0 0 10px;font-size:16px}
+.mascot-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.mascot-btn{
+  border:1px solid var(--line);background:#fff;border-radius:15px;padding:9px;cursor:pointer;display:flex;gap:8px;
+  align-items:center;text-align:left;color:var(--ink);min-height:78px;transition:.2s
+}
+.mascot-btn:hover{transform:translateY(-1px);box-shadow:0 8px 18px rgba(40,75,100,.08)}
+.mascot-btn img{width:52px;height:60px;object-fit:contain}
+.mascot-btn small{display:block;color:var(--muted);font-size:10px;line-height:1.3}
+.footer-note{margin-top:14px;padding:12px;color:#6f8190;font-size:12px;line-height:1.6;text-align:center}
+
+@media(max-width:1100px){.app{grid-template-columns:66% 34%}}
+@media(max-width:900px){
+  body{overflow:auto}.app{height:auto;grid-template-columns:1fr}
+  .stage{height:62vh;min-height:500px}.sidebar{height:auto;overflow:visible}
+  .filters{position:static}.nav{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:560px){
+  .stage{height:58vh;min-height:420px}.nav,.mascot-grid{grid-template-columns:1fr}
+  .brand small{display:none}.guide-bubble{max-width:270px}
+  .toolbar .label{display:none}
+}
+</style>
+</head>
+<body>
+<div class="splash" id="splash">
+  <div class="splash-card">
+    <div class="splash-logo">CHANGHUA COUNTY SIJHOU ELEMENTARY SCHOOL</div>
+    <h1>溪州國小 3D 校園導覽</h1>
+    <p>從校門出發，跟著喜揚羊與淡橘色腳印，一起認識校園中的學習、閱讀、國際、生態與創意空間。</p>
+    <div class="sheep-row">
+      <img class="learning-fix" src="./assets/learning.png" alt="Learning 學習羊">
+      <img src="./assets/international.png" alt="International 國際羊">
+      <img src="./assets/fancy.png" alt="Fancy 想像羊">
+      <img src="./assets/ecology.png" alt="Ecology 生態羊">
+    </div>
+    <button class="enter-btn" id="enterBtn">開始探索校園</button>
+    <span class="splash-tip">可使用滑鼠拖曳、滾輪縮放；iPad 可直接觸控操作。</span>
+  </div>
+</div>
+
+<div class="app">
+<section class="stage">
+  <div class="topbar">
+    <div class="brand"><b>溪州國小 3D 校園導覽</b><small>Sijhou Elementary School 3D Campus Guide</small></div>
+    <div class="toolbar">
+      <button class="tool-btn" id="homeBtn" title="回到校園全景">⌂ <span class="label">全景</span></button>
+      <button class="tool-btn" id="fullBtn" title="全螢幕">⛶ <span class="label">全螢幕</span></button>
+    </div>
+  </div>
+
+  <div class="map-viewport" id="mapViewport">
+    <div class="map-canvas" id="mapCanvas">
+      <img class="base" src="./assets/campus_map.png" alt="溪州國小校園立體圖">
+      <div class="dim-layer"></div>
+      <div class="footstep-layer" id="footstepLayer"></div>
+      <div class="focus-box" id="focusBox"></div>
+      <div class="pin" id="pin"></div>
+      <div class="mascot-runner" id="mascotRunner"><img id="runnerImg" src="./assets/learning.png" alt=""></div>
+
+      <button class="hotspot" data-id="main" style="left:24%;top:7%;width:53%;height:19%" aria-label="主教學大樓"></button>
+      <button class="hotspot" data-id="library" style="left:17%;top:43%;width:24%;height:19%" aria-label="羊光森林圖書館"></button>
+      <button class="hotspot" data-id="admin" style="left:40%;top:43%;width:26%;height:19%" aria-label="行政專科教室大樓"></button>
+      <button class="hotspot" data-id="field" style="left:22%;top:23%;width:56%;height:26%" aria-label="運動場"></button>
+      <button class="hotspot" data-id="playground" style="left:79%;top:26%;width:17%;height:19%" aria-label="戶外遊具區"></button>
+      <button class="hotspot" data-id="solar" style="left:68%;top:43%;width:27%;height:24%" aria-label="光電球場"></button>
+      <button class="hotspot" data-id="activity" style="left:5%;top:57%;width:28%;height:23%" aria-label="活動中心"></button>
+      <button class="hotspot" data-id="gate" style="left:39%;top:81%;width:22%;height:15%" aria-label="大門"></button>
+      <button class="hotspot" data-id="backgate" style="left:41%;top:0%;width:18%;height:10%" aria-label="後門"></button>
+      <button class="hotspot" data-id="tree" style="left:55%;top:66%;width:19%;height:18%" aria-label="慈孝臺師生樹"></button>
+      <button class="hotspot" data-id="court" style="left:78%;top:66%;width:20%;height:22%" aria-label="綜合球場"></button>
+    </div>
+  </div>
+
+  <div class="guide-bubble" id="guideBubble">
+    <img id="guideAvatar" src="./assets/learning.png" alt="">
+    <div><b id="guideName">Learning 學習羊</b><small id="guideText">歡迎來到溪州國小！</small></div>
+  </div>
+
+  <div class="legend">
+    <span>拖曳：平移</span><span>滾輪：縮放</span><span>點地點：聚焦導覽</span>
+  </div>
+</section>
+
+<aside class="sidebar">
+  <div class="hero">
+    <div>
+      <div class="eyebrow">SIJHOU CAMPUS</div>
+      <h1>校園導覽</h1>
+    </div>
+    <span class="version-chip">正式發佈版</span>
+  </div>
+  <p class="intro">左側使用固定校園立體圖，所有互動效果只疊加在底圖之上；建築外觀與名稱不再被重新生成。</p>
+
+  <div class="filters">
+    <button class="filter active" data-filter="all">全部</button>
+    <button class="filter" data-filter="building">建築</button>
+    <button class="filter" data-filter="outdoor">戶外</button>
+    <button class="filter" data-filter="feature">特色</button>
+  </div>
+
+  <div class="nav" id="nav"></div>
+
+  <section class="info">
+    <div class="info-top">
+      <div>
+        <span class="badge" id="badge">全景</span>
+        <h2 id="title">溪州國小</h2>
+      </div>
+    </div>
+    <p id="desc">從鳥瞰圖快速掌握校園主要空間。</p>
+    <button class="go-btn" id="goBtn">前往此處</button>
+
+    <div class="floor-panel" id="floorPanel">
+      <div class="floor-title">行政／專科教室大樓｜樓層切換（依畫面左右）</div>
+      <div class="floor-tabs">
+        <button data-floor="all" class="active">整棟</button>
+        <button data-floor="1">1F</button>
+        <button data-floor="2">2F</button>
+      </div>
+    </div>
+
+    <div class="subspaces" id="subspaces">
+      <div class="subspaces-title">細部空間</div>
+      <div class="subgrid" id="subgrid"></div>
+    </div>
+  </section>
+
+  <section class="mascot-panel">
+    <h3>正式喜揚羊角色導覽</h3>
+    <div class="mascot-grid">
+      <button class="mascot-btn" data-mascot="learning"><img class="learning-fix" src="./assets/learning.png" alt=""><span><b>Learning</b><small>學習羊｜閱讀與教學</small></span></button>
+      <button class="mascot-btn" data-mascot="international"><img src="./assets/international.png" alt=""><span><b>International</b><small>國際羊｜國際教育</small></span></button>
+      <button class="mascot-btn" data-mascot="fancy"><img src="./assets/fancy.png" alt=""><span><b>Fancy</b><small>想像羊｜創意與遊戲</small></span></button>
+      <button class="mascot-btn" data-mascot="ecology"><img src="./assets/ecology.png" alt=""><span><b>Ecology</b><small>生態羊｜自然與運動</small></span></button>
+    </div>
+  </section>
+
+  <div class="footer-note">彰化縣溪州國民小學｜Sijhou Elementary School</div>
+</aside>
+</div>
+
+<script>
+const places=[
+{id:'overview',name:'校園全景',cat:'feature',icon:'🗺️',badge:'全景',desc:'從鳥瞰圖快速掌握溪州國小主要空間。',zoom:1,center:[50,50],box:null,pin:[50,50],route:[],guide:'learning'},
+{id:'gate',name:'大門',cat:'feature',icon:'🏫',badge:'入口',desc:'溪州國小主要出入口。',zoom:1.85,center:[50,87],box:[39,81,22,15],pin:[50,87],route:[[50,87]],guide:'learning'},
+{id:'backgate',name:'後門',cat:'feature',icon:'🚪',badge:'入口',desc:'位於主教學大樓後方中央的後門。',zoom:1.88,center:[50,6],box:[41,0,18,10],pin:[50,6],route:[[50,87],[50,69],[50,50],[50,29],[50,6]],guide:'learning'},
+{id:'main',name:'主教學大樓',cat:'building',icon:'🏢',badge:'1F–2F',desc:'位於操場北側的主要教學大樓。',zoom:1.50,center:[50,16],box:[24,7,53,19],pin:[51,16],route:[[50,87],[50,69],[50,50],[50,32],[51,16]],guide:'learning'},
+{id:'library',name:'羊光森林圖書館',cat:'feature',icon:'📚',badge:'獨立棟',desc:'位於行政／專科教室大樓左側的獨立圖書館。',zoom:1.85,center:[29,52],box:[17,43,24,19],pin:[30,52],route:[[50,87],[47,78],[42,69],[36,60],[30,52]],guide:'learning'},
+{id:'admin',name:'行政／專科教室大樓',cat:'building',icon:'🏛️',badge:'1F–2F',desc:'一樓：總務處、行政辦公室、保健室、音樂教室；二樓左側依序為團輔室、資訊教室，右側為校長室、國際教室。',zoom:1.78,center:[53,53],box:[40,43,26,19],pin:[53,52],route:[[50,87],[50,76],[51,65],[53,52]],guide:'international'},
+{id:'field',name:'運動場',cat:'outdoor',icon:'🏃',badge:'戶外',desc:'校園中央的運動場與紅色跑道。',zoom:1.32,center:[50,35],box:[22,23,56,26],pin:[50,35],route:[[50,87],[50,70],[50,55],[50,35]],guide:'ecology'},
+{id:'playground',name:'戶外遊具區',cat:'outdoor',icon:'🛝',badge:'戶外',desc:'位於校園東側的戶外遊具區。',zoom:1.88,center:[86,35],box:[79,26,17,19],pin:[86,35],route:[[50,87],[58,77],[68,65],[77,52],[84,40],[86,35]],guide:'fancy'},
+{id:'solar',name:'光電球場',cat:'outdoor',icon:'☀️',badge:'戶外',desc:'位於校園東南側的光電球場。',zoom:1.70,center:[82,54],box:[68,43,27,24],pin:[82,54],route:[[50,87],[59,78],[68,69],[76,60],[82,54]],guide:'ecology'},
+{id:'activity',name:'活動中心',cat:'building',icon:'🎭',badge:'建築',desc:'位於校園西南側的活動中心。',zoom:1.72,center:[18,67],box:[5,57,28,23],pin:[18,67],route:[[50,87],[41,83],[31,77],[23,71],[18,67]],guide:'fancy'},
+{id:'tree',name:'慈孝臺／師生樹',cat:'feature',icon:'🌳',badge:'特色',desc:'校園前方的重要景觀節點。',zoom:1.70,center:[64,74],box:[55,66,19,18],pin:[64,74],route:[[50,87],[55,83],[60,78],[64,74]],guide:'ecology'},
+{id:'court',name:'綜合球場',cat:'outdoor',icon:'🏀',badge:'戶外',desc:'位於校園東南側的綜合球場。',zoom:1.72,center:[88,77],box:[78,66,20,22],pin:[88,77],route:[[50,87],[60,86],[70,83],[80,80],[88,77]],guide:'ecology'}
+];
+
+const adminSubs={
+// 1F：依畫面由左至右，總務處、行政辦公室、保健室、音樂教室
+general:{name:'總務處',floor:'1',badge:'1F',desc:'位於行政／專科教室大樓一樓左側。',pin:[45,54],box:[42,50,7,7]},
+office:{name:'行政辦公室',floor:'1',badge:'1F',desc:'位於行政／專科教室大樓一樓，總務處右側。',pin:[48,54],box:[47,50,6,7]},
+health:{name:'保健室',floor:'1',badge:'1F',desc:'位於行政／專科教室大樓一樓右半部。',pin:[56,54],box:[54,50,6,7]},
+music:{name:'音樂教室',floor:'1',badge:'1F',desc:'位於行政／專科教室大樓一樓右半部，保健室右側。',pin:[61,54],box:[59,50,6,7]},
+// 2F：畫面左側依序為團輔室、資訊教室；畫面右側為校長室、國際教室
+group:{name:'團輔室',floor:'2',badge:'2F',desc:'位於行政／專科教室大樓二樓左側。',pin:[45,48],box:[42,45,7,6]},
+computer:{name:'資訊教室',floor:'2',badge:'2F',desc:'位於行政／專科教室大樓二樓左側，團輔室右側。',pin:[49,48],box:[47,45,7,6]},
+principal:{name:'校長室',floor:'2',badge:'2F',desc:'位於行政／專科教室大樓二樓右側。',pin:[57,48],box:[55,45,7,6]},
+international:{name:'國際教室',floor:'2',badge:'2F',desc:'位於行政／專科教室大樓二樓右側，校長室右側。',pin:[61,48],box:[59,45,7,6]}
+};
+
+const mascots={
+learning:{name:'Learning 學習羊',img:'./assets/learning.png',text:'我帶你認識閱讀與學習空間。',target:'library'},
+international:{name:'International 國際羊',img:'./assets/international.png',text:'跟我一起找國際教育空間。',target:'admin'},
+fancy:{name:'Fancy 想像羊',img:'./assets/fancy.png',text:'我最喜歡創意、遊戲與活動空間！',target:'playground'},
+ecology:{name:'Ecology 生態羊',img:'./assets/ecology.png',text:'一起看看操場與戶外場域吧。',target:'field'}
+};
+
+const mapCanvas=document.getElementById('mapCanvas'),mapViewport=document.getElementById('mapViewport');
+const focusBox=document.getElementById('focusBox'),pin=document.getElementById('pin'),footstepLayer=document.getElementById('footstepLayer');
+const nav=document.getElementById('nav'),floorPanel=document.getElementById('floorPanel'),subspaces=document.getElementById('subspaces'),subgrid=document.getElementById('subgrid');
+const guideBubble=document.getElementById('guideBubble'),guideAvatar=document.getElementById('guideAvatar'),guideName=document.getElementById('guideName'),guideText=document.getElementById('guideText');
+const mascotRunner=document.getElementById('mascotRunner'),runnerImg=document.getElementById('runnerImg');
+
+let active='overview',filter='all',scale=1,tx=0,ty=0,drag=false,sx=0,sy=0,stx=0,sty=0,animToken=0,entered=false;
+
+function applyTransform(){mapCanvas.style.transform=`translate(${tx}px,${ty}px) scale(${scale})`}
+function focusOn(center,zoom){
+  const baseW=mapCanvas.offsetWidth,baseH=mapCanvas.offsetHeight;
+  const px=center[0]/100*baseW,py=center[1]/100*baseH;
+  scale=zoom;tx=scale*(baseW/2-px);ty=scale*(baseH/2-py);applyTransform();
+}
+function setBox(box){
+  if(!box){focusBox.style.display='none';return}
+  focusBox.style.display='block';
+  Object.assign(focusBox.style,{left:box[0]+'%',top:box[1]+'%',width:box[2]+'%',height:box[3]+'%'})
+}
+function setPin(pos){pin.style.left=pos[0]+'%';pin.style.top=pos[1]+'%';pin.classList.add('show')}
+function setInfo(name,badge,desc){document.getElementById('title').textContent=name;document.getElementById('badge').textContent=badge;document.getElementById('desc').textContent=desc}
+function showGuide(key){
+  const m=mascots[key]||mascots.learning;
+  guideAvatar.src=m.img;guideAvatar.classList.toggle('learning-fix', key==='learning');guideName.textContent=m.name;guideText.textContent=m.text;
+  guideBubble.classList.add('show');setTimeout(()=>guideBubble.classList.remove('show'),4200)
+}
+
+function drawFootsteps(points){
+  footstepLayer.innerHTML='';if(!points||points.length<2)return;
+  const spacing=7.4;let delay=0,index=0;
+  for(let i=0;i<points.length-1;i++){
+    const a=points[i],b=points[i+1],dx=b[0]-a[0],dy=b[1]-a[1],segLen=Math.hypot(dx,dy);
+    const steps=Math.max(1,Math.floor(segLen/spacing));
+    const angle=Math.atan2(dy,dx)*180/Math.PI;
+    for(let s=0;s<=steps;s++){
+      const t=s/steps,x=a[0]+dx*t,y=a[1]+dy*t;
+      const img=document.createElement('img');
+      img.src='./assets/footprints.png';img.className='footstep';img.style.left=x+'%';img.style.top=y+'%';
+      img.style.transform=`translate(-50%,-50%) rotate(${angle}deg)`;
+      img.style.animationDelay=`${delay}s`;img.style.opacity=(index%2===0?.55:.45);
+      footstepLayer.appendChild(img);delay+=.045;index++;
+    }
+  }
+}
+function animateMascot(points,key){
+  animToken++;const token=animToken;if(!points||points.length<2){mascotRunner.classList.remove('show');return}
+  runnerImg.src=(mascots[key]||mascots.learning).img;runnerImg.classList.toggle('learning-fix', key==='learning');mascotRunner.classList.add('show');
+  let seg=0,t=0,last=performance.now();
+  function step(now){
+    if(token!==animToken)return;
+    const dt=now-last;last=now;t+=dt/600;
+    while(t>=1&&seg<points.length-2){t-=1;seg++}
+    const a=points[seg],b=points[Math.min(seg+1,points.length-1)];
+    const x=a[0]+(b[0]-a[0])*Math.min(t,1),y=a[1]+(b[1]-a[1])*Math.min(t,1);
+    mascotRunner.style.left=x+'%';mascotRunner.style.top=y+'%';
+    if(seg>=points.length-2&&t>=1){setTimeout(()=>mascotRunner.classList.remove('show'),700);return}
+    requestAnimationFrame(step)
+  }
+  requestAnimationFrame(step)
+}
+function renderSubs(f='all'){
+  subgrid.innerHTML='';
+  Object.entries(adminSubs).filter(([k,v])=>f==='all'||v.floor===f).forEach(([k,v])=>{
+    const b=document.createElement('button');b.textContent=`${v.badge} ${v.name}`;b.onclick=()=>focusSub(k);subgrid.appendChild(b)
+  })
+}
+function focusSub(key){
+  const s=adminSubs[key];if(!s)return;
+  active='admin';mapCanvas.classList.add('dimmed');focusOn([53,52],2.15);setBox(s.box);setPin(s.pin);
+  drawFootsteps(places.find(p=>p.id==='admin').route);setInfo(s.name,s.badge,s.desc);
+  floorPanel.classList.add('show');subspaces.classList.add('show');
+  document.querySelectorAll('[data-floor]').forEach(b=>b.classList.toggle('active',b.dataset.floor===s.floor));
+  renderSubs(s.floor);showGuide(s.floor==='2'?'international':'learning');history.replaceState(null,'','#admin')
+}
+function focusPlace(id,updateHash=true){
+  const p=places.find(x=>x.id===id);if(!p)return;active=id;
+  if(id==='overview'){
+    mapCanvas.classList.remove('dimmed');scale=1;tx=0;ty=0;applyTransform();
+    focusBox.style.display='none';pin.classList.remove('show');footstepLayer.innerHTML='';mascotRunner.classList.remove('show')
+  }else{
+    mapCanvas.classList.add('dimmed');focusOn(p.center,p.zoom);setBox(p.box);setPin(p.pin);drawFootsteps(p.route)
+  }
+  setInfo(p.name,p.badge,p.desc);floorPanel.classList.toggle('show',id==='admin');subspaces.classList.toggle('show',id==='admin');
+  if(id==='admin')renderSubs('all');
+  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.id===id));
+  if(id!=='overview'){showGuide(p.guide);animateMascot(p.route,p.guide)}
+  if(updateHash)history.replaceState(null,'',id==='overview'?'#overview':'#'+id)
+}
+function renderNav(){
+  nav.innerHTML='';
+  places.filter(p=>p.id!=='overview'&&(filter==='all'||p.cat===filter)).forEach(p=>{
+    const b=document.createElement('button');b.dataset.id=p.id;
+    b.innerHTML=`<span style="font-size:20px">${p.icon}</span><span><b>${p.name}</b><div class="meta">${p.badge}</div></span>`;
+    b.onclick=()=>focusPlace(p.id);nav.appendChild(b)
+  });
+  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.id===active))
+}
+
+renderNav();renderSubs('all');focusPlace('overview',false);
+
+document.getElementById('enterBtn').onclick=()=>{entered=true;document.getElementById('splash').classList.add('hide')};
+document.querySelectorAll('.filter').forEach(b=>b.onclick=()=>{document.querySelectorAll('.filter').forEach(x=>x.classList.remove('active'));b.classList.add('active');filter=b.dataset.filter;renderNav()});
+document.querySelectorAll('[data-floor]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-floor]').forEach(x=>x.classList.remove('active'));b.classList.add('active');renderSubs(b.dataset.floor);showGuide(b.dataset.floor==='2'?'international':'learning')});
+document.querySelectorAll('.mascot-btn').forEach(b=>b.onclick=()=>{const m=mascots[b.dataset.mascot];showGuide(b.dataset.mascot);focusPlace(m.target)});
+document.querySelectorAll('.hotspot').forEach(b=>b.onclick=e=>{e.stopPropagation();focusPlace(b.dataset.id)});
+document.getElementById('homeBtn').onclick=()=>focusPlace('overview');
+document.getElementById('goBtn').onclick=()=>focusPlace(active);
+document.getElementById('fullBtn').onclick=async()=>{
+  try{if(!document.fullscreenElement)await document.documentElement.requestFullscreen();else await document.exitFullscreen()}catch(e){}
+};
+
+mapViewport.addEventListener('pointerdown',e=>{drag=true;sx=e.clientX;sy=e.clientY;stx=tx;sty=ty;mapViewport.setPointerCapture(e.pointerId)});
+mapViewport.addEventListener('pointermove',e=>{if(!drag)return;mapCanvas.style.transition='none';tx=stx+(e.clientX-sx);ty=sty+(e.clientY-sy);applyTransform()});
+mapViewport.addEventListener('pointerup',()=>{drag=false;mapCanvas.style.transition='transform .9s cubic-bezier(.2,.8,.2,1)'});
+mapViewport.addEventListener('wheel',e=>{e.preventDefault();scale=Math.max(1,Math.min(2.8,scale+(e.deltaY<0?.10:-.10)));mapCanvas.style.transition='none';applyTransform();setTimeout(()=>mapCanvas.style.transition='transform .9s cubic-bezier(.2,.8,.2,1)',40)},{passive:false});
+window.addEventListener('resize',()=>{if(active==='overview'){tx=0;ty=0;scale=1;applyTransform()}else{const p=places.find(x=>x.id===active);if(p)focusOn(p.center,p.zoom)}});
+window.addEventListener('keydown',e=>{if(e.key==='Escape'&&!document.fullscreenElement)focusPlace('overview')});
+
+const hash=location.hash.replace('#','');
+if(hash&&places.some(p=>p.id===hash))focusPlace(hash,false);
+</script>
+</body>
+</html>
